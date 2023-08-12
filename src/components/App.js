@@ -1,4 +1,5 @@
-import React, { useEffect, useReducer } from "react";
+import React, { useEffect } from "react";
+import Confetti from "react-confetti";
 
 import Header from "./Header";
 import Main from "./Main";
@@ -10,88 +11,18 @@ import NextButton from "./NextButton";
 import Progress from "./Progress";
 import FinishedScreen from "./FinishedScreen";
 import Timer from "./Timer";
-import Confetti from "react-confetti";
 import Footer from "./Footer";
-
-const SEC_PER_QUESTION = 30;
-
-function reducer(state, action) {
-  switch (action.type) {
-    case "dataReceived":
-      return { ...state, questions: action.payload, status: "ready" };
-    case "dataFailed":
-      return { ...state, status: "error" };
-    case "start":
-      return {
-        ...state,
-        status: "active",
-        counter: state.questions.length * SEC_PER_QUESTION,
-      };
-    case "newAnswer":
-      const question = state.questions[state.index];
-      return {
-        ...state,
-        answer: action.payload,
-        points:
-          question.correctOption === action.payload
-            ? state.points + question.points
-            : state.points,
-      };
-    case "nextQuestion":
-      return { ...state, index: state.index + 1, answer: null };
-    case "finishQuiz":
-      return {
-        ...state,
-        status: "finish",
-        highscore:
-          state.highscore > state.points ? state.highscore : state.points,
-      };
-    case "restartGame":
-      return {
-        ...initialState,
-        status: "ready",
-        questions: state.questions,
-      };
-    case "countDown":
-      return {
-        ...state,
-        counter: state.counter - 1,
-        status: state.counter === 0 ? "finish" : state.status,
-      };
-
-    default:
-      return "Unknown action";
-  }
-}
-
-const initialState = {
-  questions: [],
-  // 'loading', 'error', 'ready', 'active', 'finished'
-  status: "loading",
-  index: 0,
-  answer: null,
-  points: 0,
-  highscore: 0,
-  counter: null,
-};
+import { useQuiz } from "../context/QuizContext";
 
 function App() {
-  const [
-    { status, questions, index, answer, points, highscore, counter },
-    dispatch,
-  ] = useReducer(reducer, initialState);
-  const numQuestions = questions.length;
-  const maxPossiblePoints = questions.reduce(
-    (prev, cur) => prev + cur.points,
-    0
-  );
+  const { status, points, maxPossiblePoints, dispatch } = useQuiz();
 
   useEffect(() => {
     fetch("http://localhost:7000/questions")
       .then((res) => res.json())
       .then((data) => dispatch({ type: "dataReceived", payload: data }))
       .catch((err) => dispatch({ type: "dataFailed" }));
-  }, []);
+  }, [dispatch]);
 
   return (
     <div className="app">
@@ -99,42 +30,20 @@ function App() {
       <Main>
         {status === "loading" && <Loader />}
         {status === "error" && <Error />}
-        {status === "ready" && (
-          <StartScreen numQuestions={numQuestions} dispatch={dispatch} />
-        )}
+        {status === "ready" && <StartScreen />}
         {status === "active" && (
           <>
-            <Progress
-              index={index}
-              numQuestions={numQuestions}
-              points={points}
-              maxPossiblePoints={maxPossiblePoints}
-              answer={answer}
-            />
-            <Question
-              questions={questions[index]}
-              answer={answer}
-              dispatch={dispatch}
-            />
+            <Progress />
+            <Question />
             <Footer>
-              <Timer dispatch={dispatch} counter={counter} />
-              <NextButton
-                answer={answer}
-                dispatch={dispatch}
-                index={index}
-                numQuestions={numQuestions}
-              />
+              <Timer />
+              <NextButton />
             </Footer>
           </>
         )}
         {status === "finish" && (
           <>
-            <FinishedScreen
-              highscore={highscore}
-              maxPossiblePoints={maxPossiblePoints}
-              points={points}
-              dispatch={dispatch}
-            />
+            <FinishedScreen />
             {points === maxPossiblePoints && <Confetti />}
           </>
         )}
